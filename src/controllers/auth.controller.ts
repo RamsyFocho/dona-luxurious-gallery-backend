@@ -27,13 +27,17 @@ declare module "express" {
 const signToken = (id: string, role: string) => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error('JWT_SECRET is not defined');
+    throw new Error("JWT_SECRET is not defined");
   }
 
   const expiresIn = process.env.JWT_EXPIRES_IN;
 
   // Cast secret to jwt.Secret and options to SignOptions to satisfy type definitions
-  return jwt.sign({ id, role }, secret as jwt.Secret, { expiresIn } as jwt.SignOptions);
+  return jwt.sign(
+    { id, role },
+    secret as jwt.Secret,
+    { expiresIn } as jwt.SignOptions
+  );
 };
 
 export const login = catchAsync(
@@ -73,12 +77,12 @@ export const login = catchAsync(
       id: user.id,
       email: user.email,
       name: user.name ?? undefined,
-      role: user.role as 'USER' | 'ADMIN',
+      role: user.role as "USER" | "ADMIN",
       isActive: user.isActive,
       lastLogin: user.lastLogin ?? undefined,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-    }; 
+    };
 
     const response: ILoginResponse = {
       user: userWithoutPassword,
@@ -110,7 +114,10 @@ export const protect = catchAsync(
     }
 
     // 2) Verification token
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET as jwt.Secret);
+    const decoded: any = jwt.verify(
+      token,
+      process.env.JWT_SECRET as jwt.Secret
+    );
 
     // 3) Check if user still exists
     const currentUser = await prisma.user.findUnique({
@@ -128,7 +135,7 @@ export const protect = catchAsync(
       id: currentUser.id,
       email: currentUser.email,
       name: currentUser.name ?? undefined,
-      role: currentUser.role as 'USER' | 'ADMIN',
+      role: currentUser.role as "USER" | "ADMIN",
       isActive: currentUser.isActive,
       lastLogin: currentUser.lastLogin ?? undefined,
       createdAt: currentUser.createdAt,
