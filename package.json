@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "nodemon src/server.ts",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate --schema=./prisma/schema.postgres.prisma && prisma migrate deploy --schema=./prisma/schema.postgres.prisma",
+    "vercel-build": "prisma generate && prisma migrate deploy",
+    // "vercel-build": "prisma generate --schema=./prisma/schema.postgres.prisma && prisma migrate deploy --schema=./prisma/schema.postgres.prisma",
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
