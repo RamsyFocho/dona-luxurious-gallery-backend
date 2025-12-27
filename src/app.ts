@@ -12,24 +12,30 @@ import productRoutes from "./routes/product.routes";
 import errorMiddleware from "./middleware/error.middleware";
 import categoryRoutes from "./routes/category.routes";
 import uploadRoutes from "./routes/upload.routes";
+import path from "path";
 
 dotenv.config();
 
 const app: Application = express();
+// CORS configuration for API routes
+const corsOptions = {
+  origin: process.env.NODE_ENV === "production"
+    ? [process.env.FRONT_END_URL || "", process.env.BASE_URL || '']
+    : ["http://localhost:3000", "http://localhost:5000"],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  // Configure helmet to allow images
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
+}));
 
 // CORS configuration
-app.use(
-  cors({
-    origin:
-      process.env.NODE_ENV === "production"
-        ? ["https://your-frontend-domain.com"]
-        : ["http://localhost:3000"],
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -43,8 +49,42 @@ app.use("/api", limiter);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Static files
-app.use("/uploads", express.static("uploads"));
+// Custom CORS middleware for static files
+const staticCors = (req: any, res: any, next: any) => {
+  res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === "production"
+    ? process.env.FRONT_END_URL || "*"
+    : "http://localhost:3000");
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+};
+
+// Static files with CORS headers
+app.use("/uploads", staticCors, express.static(path.join(__dirname, "../uploads"), {
+  setHeaders: (res, filePath) => {
+    // Additional headers for images
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    
+    // Set appropriate Content-Type based on file extension
+    const ext = path.extname(filePath).toLowerCase();
+    if (['.jpg', '.jpeg'].includes(ext)) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (ext === '.png') {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (ext === '.gif') {
+      res.setHeader('Content-Type', 'image/gif');
+    } else if (ext === '.webp') {
+      res.setHeader('Content-Type', 'image/webp');
+    }
+  }
+}));
 
 // Routes
 app.use("/api/auth", authRoutes);

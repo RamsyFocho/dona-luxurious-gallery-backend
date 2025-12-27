@@ -10,7 +10,14 @@ export const uploadSingleFile = catchAsync(async (req: Request, res: Response, n
   }
 
   const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
-  const fileUrl = `${baseUrl}/uploads/${req.file.path.split('uploads/')[1]}`;
+  // Get the relative path from the uploads directory
+  const uploadsDir = path.resolve('uploads');
+  const filePath = path.resolve(req.file.path);
+  
+  // Get relative path from uploads directory
+  const relativePath = path.relative(uploadsDir, filePath);
+  const fileUrl = `${baseUrl}/uploads/${relativePath.replace(/\\/g, '/')}`;
+  // const fileUrl = `${baseUrl}/uploads/${req.file.path.split('uploads/')[1]}`;
 
   res.status(200).json({
     status: 'success',
@@ -32,15 +39,28 @@ export const uploadMultipleFiles = catchAsync(async (req: Request, res: Response
   }
 
   const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
-  const files = (req.files as Express.Multer.File[]).map(file => ({
-    url: `${baseUrl}/uploads/${file.path.split('uploads/')[1]}`,
-    filename: file.filename,
-    originalname: file.originalname,
-    mimetype: file.mimetype,
-    size: file.size,
-    path: file.path,
-  }));
 
+  // const files = (req.files as Express.Multer.File[]).map(file => ({
+  //   url: `${baseUrl}/uploads/${file.path.split('uploads/')[1]}`,
+  //   filename: file.filename,
+  //   originalname: file.originalname,
+  //   mimetype: file.mimetype,
+  //   size: file.size,
+  //   path: file.path,
+  // }));
+const files = (req.files as Express.Multer.File[]).map(file => {
+    const relativePath = file.path.replace(/^.*uploads[\\/]/, 'uploads/').replace(/\\/g, '/');
+    const fileUrl = `${baseUrl}/${relativePath}`;
+    
+    return {
+      url: fileUrl,
+      filename: file.filename,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+      path: file.path,
+    };
+  });
   res.status(200).json({
     status: 'success',
     message: 'Files uploaded successfully',

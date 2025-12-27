@@ -8,8 +8,10 @@ import {
   bulkCreateProducts,
   getTrendingProducts,
   getFeaturedProducts,
+  uploadProductImage,
 } from '../controllers/product.controller';
 import { protect, restrictTo } from '../controllers/auth.controller';
+import { uploadSingle } from '../config/upload';
 
 const router = express.Router();
 
@@ -18,7 +20,8 @@ router.get('/', getAllProducts);
 router.get('/trending', getTrendingProducts);
 router.get('/featured', getFeaturedProducts);
 router.get('/:slug', getProductBySlug);
-
+// Add this route to your existing product routes
+router.patch('/:slug/image', protect, restrictTo('ADMIN'), uploadSingle('file'), uploadProductImage);
 // Protected admin routes
 router.use(protect);
 router.use(restrictTo('ADMIN'));

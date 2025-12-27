@@ -4,6 +4,7 @@ import AppError from '../utils/appError';
 import catchAsync from '../utils/catchAsync';
 import { ICreateProduct, IUpdateProduct, IBulkCreateProduct } from '../types';
 import { getPaginationParams, stringifyJsonArray, parseJsonArray } from '../utils/helpers';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -163,7 +164,65 @@ export const createProduct = catchAsync(async (req: Request, res: Response, next
     data: formattedProduct,
   });
 });
+// Add this function to your product controller
+export const uploadProductImage = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  console.log("--------uploading product from the patch product/:slug/image endpoint ---------------")
+  if (!req.file) {
+    return next(new AppError('Please upload an image file', 400));
+  }
 
+  const product = await prisma.product.findUnique({
+    where: { slug: req.params.slug },
+  });
+
+  if (!product) {
+    return next(new AppError('Product not found', 404));
+  }
+
+  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+   // Fix the path construction
+    // Get the relative path from the uploads directory
+  const uploadsDir = path.resolve('uploads');
+  const filePath = path.resolve(req.file.path);
+  
+  // Get relative path from uploads directory
+  const relativePath = path.relative(uploadsDir, filePath);
+  const fileUrl = `${baseUrl}/uploads/${relativePath.replace(/\\/g, '/')}`;
+  // const fileUrl = `${baseUrl}/uploads/${req.file.path.split('uploads/')[1]}`;
+
+  // Parse existing images
+  const existingImages = parseJsonArray(product.images);
+  const updatedImages = [...existingImages, fileUrl];
+
+  // Update product with new image
+  const updatedProduct = await prisma.product.update({
+    where: { slug: req.params.slug },
+    data: {
+      images: stringifyJsonArray(updatedImages),
+    },
+    include: {
+      category: {
+        select: {
+          name: true,
+          slug: true,
+        },
+      },
+    },
+  });
+
+  const formattedProduct = {
+    ...updatedProduct,
+    images: parseJsonArray(updatedProduct.images),
+    materials: parseJsonArray(updatedProduct.materials),
+    keyFeatures: parseJsonArray(updatedProduct.keyFeatures),
+    price: updatedProduct.price ? parseFloat(updatedProduct.price.toString()) : undefined,
+  };
+
+  res.status(200).json({
+    status: 'success',
+    data: formattedProduct,
+  });
+});
 // Bulk create products
 export const bulkCreateProducts = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
   const { products }: IBulkCreateProduct = req.body;
