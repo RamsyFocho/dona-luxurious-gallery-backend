@@ -1,0 +1,7 @@
+// prisma/schema.mysql.prisma
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+include "schema.prisma"
