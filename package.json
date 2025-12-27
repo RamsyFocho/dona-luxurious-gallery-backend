@@ -4,6 +4,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/server.ts",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && prisma migrate deploy",
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
