@@ -1,89 +1,88 @@
 generator client {
   provider = "prisma-client-js"
-   engineType = "client" // Uses the lighter JS engine
 }
 
 datasource db {
-  provider = env("PRISMA_PROVIDER")
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  password     String
-  name         String?
-  role         String    @default("USER") // "USER" or "ADMIN"
-  isActive     Boolean   @default(true)
-  lastLogin    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  name      String?
+  role      String    @default("USER") // "USER" or "ADMIN"
+  isActive  Boolean   @default(true)
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@map("users")
 }
 
 model Category {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
-  slug        String    @unique
+  slug        String   @unique
   image       String?
   description String?
-  isActive    Boolean   @default(true)
+  isActive    Boolean  @default(true)
   order       Int?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  products    Product[]
+  products Product[]
 
   @@map("categories")
 }
 
 model Product {
-  id              String        @id @default(uuid())
+  id              String  @id @default(uuid())
   name            String
-  slug            String        @unique
+  slug            String  @unique
   categoryId      String
   categorySlug    String
   description     String
-  longDescription String        @db.Text
+  longDescription String  @db.Text
   metaDescription String?
-  
+
   // Images stored as JSON array
-  images          String        @db.Text
-  
+  images String @db.Text
+
   // Arrays stored as JSON
-  materials       String        @db.Text
-  keyFeatures     String        @db.Text
-  
-  trending        Boolean       @default(false)
-  isFeatured      Boolean       @default(false)
-  inStock         Boolean       @default(true)
-  price           Decimal?      @db.Decimal(10, 2)
-  
+  materials   String @db.Text
+  keyFeatures String @db.Text
+
+  trending   Boolean  @default(false)
+  isFeatured Boolean  @default(false)
+  inStock    Boolean  @default(true)
+  price      Decimal? @db.Numeric(10, 2)
+
   // SEO Schema
-  schemaType      String?       @default("Product")
+  schemaType        String? @default("Product")
   schemaDescription String?
-  schemaImage     String?
-  schemaCategory  String?
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
-  category        Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  productImages   ProductImage[] // Add this relation field
-  
+  schemaImage       String?
+  schemaCategory    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  productImages ProductImage[]
+
   @@map("products")
 }
 
 model ProductImage {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   productId String
   url       String
   altText   String?
-  order     Int      @default(0)
-  isPrimary Boolean  @default(false)
-  
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
+  order     Int     @default(0)
+  isPrimary Boolean @default(false)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
   @@map("product_images")
 }
