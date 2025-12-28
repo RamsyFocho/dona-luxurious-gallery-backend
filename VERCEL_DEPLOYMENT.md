@@ -114,6 +114,10 @@ npm run prisma:studio
   - Alternatively, use Prisma Data Proxy for production traffic to avoid engine issues entirely.
 
 - Add `PRISMA_CLIENT_ENGINE_TYPE=wasm` in Vercel dashboard (Environment Variables) and redeploy.
+- Ensure `DATABASE_URL` is set in the **Build** and **Production** environment scopes (Vercel allows separate values for Build vs Runtime). If `DATABASE_URL` is only set for Production, `prisma migrate deploy` will fail during the build step.
 
 - Verify the serverless function works by hitting the health endpoint:
+
   - `GET https://<your-vercel-domain>/api/health` should return `{ status: "ok" }`
+
+- If migrations/seed do not run during the build, check the build logs for the markers we added (e.g., `===> running prisma migrate deploy`). These will show any failures and the command output so you can debug connection or permission issues.

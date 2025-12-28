@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run build && npm run prisma:generate && npm run prisma:deploy && npm run prisma:seed",
+  "buildCommand": "npm run build && echo '===> running prisma generate (postinstall also runs it)' && npm run prisma:generate && echo '===> running prisma migrate deploy' && npx prisma migrate deploy --schema=prisma/schema.prisma && echo '===> running prisma seed' && npx ts-node prisma/seed.ts",
   "builds": [
     {
       "src": "api/index.ts",

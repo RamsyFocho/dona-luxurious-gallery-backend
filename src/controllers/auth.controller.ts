@@ -1,12 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../utils/prisma";
 import AppError from "../utils/appError";
 import catchAsync from "../utils/catchAsync";
 import { ILoginRequest, ILoginResponse } from "../types";
-
-const prisma = new PrismaClient();
 
 // Declare module augmentation
 declare module "express" {
