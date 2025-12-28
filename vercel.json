@@ -3,21 +3,12 @@
   "buildCommand": "npm run build && npm run prisma:deploy",
   "builds": [
     {
-      "src": "src/server.ts",
+      "src": "api/index.ts", 
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "src/server.ts"
-    },
-    {
       "src": "/(.*)",
-      "dest": "src/server.ts"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+      "dest": "api/index.ts"
 }
