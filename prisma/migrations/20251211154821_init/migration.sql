@@ -44,7 +44,7 @@ CREATE TABLE "products" (
     "trending" BOOLEAN NOT NULL DEFAULT false,
     "isFeatured" BOOLEAN NOT NULL DEFAULT false,
     "inStock" BOOLEAN NOT NULL DEFAULT true,
-    "price" NUMERIC(10,2),
+    "price" DECIMAL(10,2),
     "schemaType" TEXT DEFAULT 'Product',
     "schemaDescription" TEXT,
     "schemaImage" TEXT,

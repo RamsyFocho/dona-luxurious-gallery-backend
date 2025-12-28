@@ -57,7 +57,7 @@ model Product {
   trending   Boolean  @default(false)
   isFeatured Boolean  @default(false)
   inStock    Boolean  @default(true)
-  price      Decimal? @db.Numeric(10, 2)
+  price      Decimal? @db.Decimal(10, 2)
 
   // SEO Schema
   schemaType        String? @default("Product")
