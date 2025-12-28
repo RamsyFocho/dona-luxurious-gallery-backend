@@ -3,11 +3,19 @@
   "buildCommand": "npm run build && npm run prisma:generate && npm run prisma:deploy && npm run prisma:seed",
   "builds": [
     {
-      "src": "api/index.ts", 
+      "src": "api/index.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "src": "/api/health",
+      "dest": "api/health.ts"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "api/index.ts"
+    },
     {
       "src": "/(.*)",
       "dest": "api/index.ts"

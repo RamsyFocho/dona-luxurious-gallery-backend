@@ -103,3 +103,17 @@ npm run prisma:studio
 ✅ `package.json` - Replaced mysql2 with pg, added prisma:deploy script
 ✅ `vercel.json` - Added buildCommand with migration step
 ✅ `.env.example` - PostgreSQL connection string template
+✅ `api/index.ts` - Serverless handler that forwards to Express `app`
+✅ `api/health.ts` - Minimal health endpoint used to validate function invocation
+
+## Vercel-specific notes (important)
+
+- For serverless environments, native Prisma query engine binaries can cause crashes. Recommended options:
+
+  - Set `PRISMA_CLIENT_ENGINE_TYPE=wasm` in your Vercel environment variables to use the WASM engine (no native binaries required).
+  - Alternatively, use Prisma Data Proxy for production traffic to avoid engine issues entirely.
+
+- Add `PRISMA_CLIENT_ENGINE_TYPE=wasm` in Vercel dashboard (Environment Variables) and redeploy.
+
+- Verify the serverless function works by hitting the health endpoint:
+  - `GET https://<your-vercel-domain>/api/health` should return `{ status: "ok" }`
