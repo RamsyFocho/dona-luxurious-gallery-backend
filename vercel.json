@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run build && npm run prisma:deploy",
+  "buildCommand": "npm run build && npm run prisma:generate && npm run prisma:deploy && npm run prisma:seed",
   "builds": [
     {
       "src": "api/index.ts", 
