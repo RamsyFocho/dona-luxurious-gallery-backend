@@ -6,10 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getMe = exports.restrictTo = exports.protect = exports.login = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../utils/prisma"));
 const appError_1 = __importDefault(require("../utils/appError"));
 const catchAsync_1 = __importDefault(require("../utils/catchAsync"));
-const prisma = new client_1.PrismaClient();
 const signToken = (id, role) => {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
@@ -26,7 +25,7 @@ exports.login = (0, catchAsync_1.default)(async (req, res, next) => {
         return next(new appError_1.default("Please provide email and password!", 400));
     }
     // 2) Check if user exists && password is correct
-    const user = await prisma.user.findUnique({
+    const user = await prisma_1.default.user.findUnique({
         where: { email },
     });
     if (!user || !(await bcryptjs_1.default.compare(password, user.password))) {
@@ -37,7 +36,7 @@ exports.login = (0, catchAsync_1.default)(async (req, res, next) => {
         return next(new appError_1.default("Your account has been deactivated", 403));
     }
     // 4) Update last login
-    await prisma.user.update({
+    await prisma_1.default.user.update({
         where: { id: user.id },
         data: { lastLogin: new Date() },
     });
@@ -76,7 +75,7 @@ exports.protect = (0, catchAsync_1.default)(async (req, res, next) => {
     // 2) Verification token
     const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
     // 3) Check if user still exists
-    const currentUser = await prisma.user.findUnique({
+    const currentUser = await prisma_1.default.user.findUnique({
         where: { id: decoded.id },
     });
     if (!currentUser) {
@@ -108,7 +107,7 @@ const restrictTo = (...roles) => {
 };
 exports.restrictTo = restrictTo;
 exports.getMe = (0, catchAsync_1.default)(async (req, res) => {
-    const user = await prisma.user.findUnique({
+    const user = await prisma_1.default.user.findUnique({
         where: { id: req.user.id },
         select: {
             id: true,

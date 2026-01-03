@@ -4,12 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getFeaturedProducts = exports.getTrendingProducts = exports.deleteProduct = exports.updateProduct = exports.bulkCreateProducts = exports.uploadProductImage = exports.createProduct = exports.getProductBySlug = exports.getAllProducts = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../utils/prisma"));
 const appError_1 = __importDefault(require("../utils/appError"));
 const catchAsync_1 = __importDefault(require("../utils/catchAsync"));
 const helpers_1 = require("../utils/helpers");
 const path_1 = __importDefault(require("path"));
-const prisma = new client_1.PrismaClient();
 // Get all products with pagination and filters
 exports.getAllProducts = (0, catchAsync_1.default)(async (req, res) => {
     const { page, limit, skip } = (0, helpers_1.getPaginationParams)(req);
@@ -19,26 +18,31 @@ exports.getAllProducts = (0, catchAsync_1.default)(async (req, res) => {
         filters.categorySlug = req.query.categorySlug;
     }
     if (req.query.trending) {
-        filters.trending = req.query.trending === 'true';
+        filters.trending = req.query.trending === "true";
     }
     if (req.query.isFeatured) {
-        filters.isFeatured = req.query.isFeatured === 'true';
+        filters.isFeatured = req.query.isFeatured === "true";
     }
     if (req.query.inStock) {
-        filters.inStock = req.query.inStock === 'true';
+        filters.inStock = req.query.inStock === "true";
     }
     if (req.query.search) {
         filters.OR = [
-            { name: { contains: req.query.search, mode: 'insensitive' } },
-            { description: { contains: req.query.search, mode: 'insensitive' } },
+            { name: { contains: req.query.search, mode: "insensitive" } },
+            {
+                description: {
+                    contains: req.query.search,
+                    mode: "insensitive",
+                },
+            },
         ];
     }
     const [products, total] = await Promise.all([
-        prisma.product.findMany({
+        prisma_1.default.product.findMany({
             where: filters,
             skip,
             take: limit,
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
             include: {
                 category: {
                     select: {
@@ -48,10 +52,10 @@ exports.getAllProducts = (0, catchAsync_1.default)(async (req, res) => {
                 },
             },
         }),
-        prisma.product.count({ where: filters }),
+        prisma_1.default.product.count({ where: filters }),
     ]);
     // Parse JSON arrays
-    const formattedProducts = products.map(product => ({
+    const formattedProducts = products.map((product) => ({
         ...product,
         images: (0, helpers_1.parseJsonArray)(product.images),
         materials: (0, helpers_1.parseJsonArray)(product.materials),
@@ -59,7 +63,7 @@ exports.getAllProducts = (0, catchAsync_1.default)(async (req, res) => {
         price: product.price ? parseFloat(product.price.toString()) : undefined,
     }));
     res.status(200).json({
-        status: 'success',
+        status: "success",
         results: products.length,
         pagination: {
             page,
@@ -72,7 +76,7 @@ exports.getAllProducts = (0, catchAsync_1.default)(async (req, res) => {
 });
 // Get single product by slug
 exports.getProductBySlug = (0, catchAsync_1.default)(async (req, res, next) => {
-    const product = await prisma.product.findUnique({
+    const product = await prisma_1.default.product.findUnique({
         where: { slug: req.params.slug },
         include: {
             category: {
@@ -86,7 +90,7 @@ exports.getProductBySlug = (0, catchAsync_1.default)(async (req, res, next) => {
         },
     });
     if (!product) {
-        return next(new appError_1.default('Product not found', 404));
+        return next(new appError_1.default("Product not found", 404));
     }
     const formattedProduct = {
         ...product,
@@ -96,7 +100,7 @@ exports.getProductBySlug = (0, catchAsync_1.default)(async (req, res, next) => {
         price: product.price ? parseFloat(product.price.toString()) : undefined,
     };
     res.status(200).json({
-        status: 'success',
+        status: "success",
         data: formattedProduct,
     });
 });
@@ -104,20 +108,20 @@ exports.getProductBySlug = (0, catchAsync_1.default)(async (req, res, next) => {
 exports.createProduct = (0, catchAsync_1.default)(async (req, res, next) => {
     const productData = req.body;
     // Check if category exists
-    const category = await prisma.category.findUnique({
+    const category = await prisma_1.default.category.findUnique({
         where: { id: productData.categoryId },
     });
     if (!category) {
-        return next(new appError_1.default('Category not found', 404));
+        return next(new appError_1.default("Category not found", 404));
     }
     // Check if slug already exists
-    const existingProduct = await prisma.product.findUnique({
+    const existingProduct = await prisma_1.default.product.findUnique({
         where: { slug: productData.slug },
     });
     if (existingProduct) {
-        return next(new appError_1.default('Product with this slug already exists', 400));
+        return next(new appError_1.default("Product with this slug already exists", 400));
     }
-    const product = await prisma.product.create({
+    const product = await prisma_1.default.product.create({
         data: {
             ...productData,
             images: (0, helpers_1.stringifyJsonArray)(productData.images),
@@ -141,7 +145,7 @@ exports.createProduct = (0, catchAsync_1.default)(async (req, res, next) => {
         price: product.price ? parseFloat(product.price.toString()) : undefined,
     };
     res.status(201).json({
-        status: 'success',
+        status: "success",
         data: formattedProduct,
     });
 });
@@ -149,28 +153,28 @@ exports.createProduct = (0, catchAsync_1.default)(async (req, res, next) => {
 exports.uploadProductImage = (0, catchAsync_1.default)(async (req, res, next) => {
     console.log("--------uploading product from the patch product/:slug/image endpoint ---------------");
     if (!req.file) {
-        return next(new appError_1.default('Please upload an image file', 400));
+        return next(new appError_1.default("Please upload an image file", 400));
     }
-    const product = await prisma.product.findUnique({
+    const product = await prisma_1.default.product.findUnique({
         where: { slug: req.params.slug },
     });
     if (!product) {
-        return next(new appError_1.default('Product not found', 404));
+        return next(new appError_1.default("Product not found", 404));
     }
-    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
     // Fix the path construction
     // Get the relative path from the uploads directory
-    const uploadsDir = path_1.default.resolve('uploads');
+    const uploadsDir = path_1.default.resolve("uploads");
     const filePath = path_1.default.resolve(req.file.path);
     // Get relative path from uploads directory
     const relativePath = path_1.default.relative(uploadsDir, filePath);
-    const fileUrl = `${baseUrl}/uploads/${relativePath.replace(/\\/g, '/')}`;
+    const fileUrl = `${baseUrl}/uploads/${relativePath.replace(/\\/g, "/")}`;
     // const fileUrl = `${baseUrl}/uploads/${req.file.path.split('uploads/')[1]}`;
     // Parse existing images
     const existingImages = (0, helpers_1.parseJsonArray)(product.images);
     const updatedImages = [...existingImages, fileUrl];
     // Update product with new image
-    const updatedProduct = await prisma.product.update({
+    const updatedProduct = await prisma_1.default.product.update({
         where: { slug: req.params.slug },
         data: {
             images: (0, helpers_1.stringifyJsonArray)(updatedImages),
@@ -189,10 +193,12 @@ exports.uploadProductImage = (0, catchAsync_1.default)(async (req, res, next) =>
         images: (0, helpers_1.parseJsonArray)(updatedProduct.images),
         materials: (0, helpers_1.parseJsonArray)(updatedProduct.materials),
         keyFeatures: (0, helpers_1.parseJsonArray)(updatedProduct.keyFeatures),
-        price: updatedProduct.price ? parseFloat(updatedProduct.price.toString()) : undefined,
+        price: updatedProduct.price
+            ? parseFloat(updatedProduct.price.toString())
+            : undefined,
     };
     res.status(200).json({
-        status: 'success',
+        status: "success",
         data: formattedProduct,
     });
 });
@@ -200,33 +206,33 @@ exports.uploadProductImage = (0, catchAsync_1.default)(async (req, res, next) =>
 exports.bulkCreateProducts = (0, catchAsync_1.default)(async (req, res, next) => {
     const { products } = req.body;
     // Validate all categories exist
-    const categoryIds = [...new Set(products.map(p => p.categoryId))];
-    const categories = await prisma.category.findMany({
+    const categoryIds = [...new Set(products.map((p) => p.categoryId))];
+    const categories = await prisma_1.default.category.findMany({
         where: { id: { in: categoryIds } },
     });
     if (categories.length !== categoryIds.length) {
-        return next(new appError_1.default('One or more categories not found', 404));
+        return next(new appError_1.default("One or more categories not found", 404));
     }
     // Check for duplicate slugs
-    const slugs = products.map(p => p.slug);
-    const existingProducts = await prisma.product.findMany({
+    const slugs = products.map((p) => p.slug);
+    const existingProducts = await prisma_1.default.product.findMany({
         where: { slug: { in: slugs } },
     });
     if (existingProducts.length > 0) {
-        return next(new appError_1.default('Some products with these slugs already exist', 400));
+        return next(new appError_1.default("Some products with these slugs already exist", 400));
     }
-    const productsData = products.map(product => ({
+    const productsData = products.map((product) => ({
         ...product,
         images: (0, helpers_1.stringifyJsonArray)(product.images),
         materials: (0, helpers_1.stringifyJsonArray)(product.materials),
         keyFeatures: (0, helpers_1.stringifyJsonArray)(product.keyFeatures),
     }));
-    const createdProducts = await prisma.product.createMany({
+    const createdProducts = await prisma_1.default.product.createMany({
         data: productsData,
         skipDuplicates: true,
     });
     res.status(201).json({
-        status: 'success',
+        status: "success",
         message: `${createdProducts.count} products created successfully`,
     });
 });
@@ -235,20 +241,20 @@ exports.updateProduct = (0, catchAsync_1.default)(async (req, res, next) => {
     const updateData = req.body;
     // If categoryId is being updated, check if it exists
     if (updateData.categoryId) {
-        const category = await prisma.category.findUnique({
+        const category = await prisma_1.default.category.findUnique({
             where: { id: updateData.categoryId },
         });
         if (!category) {
-            return next(new appError_1.default('Category not found', 404));
+            return next(new appError_1.default("Category not found", 404));
         }
     }
     // If slug is being updated, check if it's not already taken
     if (updateData.slug && updateData.slug !== req.params.slug) {
-        const existingProduct = await prisma.product.findUnique({
+        const existingProduct = await prisma_1.default.product.findUnique({
             where: { slug: updateData.slug },
         });
         if (existingProduct) {
-            return next(new appError_1.default('Product with this slug already exists', 400));
+            return next(new appError_1.default("Product with this slug already exists", 400));
         }
     }
     const updatedData = { ...updateData };
@@ -262,7 +268,7 @@ exports.updateProduct = (0, catchAsync_1.default)(async (req, res, next) => {
     if (updateData.keyFeatures) {
         updatedData.keyFeatures = (0, helpers_1.stringifyJsonArray)(updateData.keyFeatures);
     }
-    const product = await prisma.product.update({
+    const product = await prisma_1.default.product.update({
         where: { slug: req.params.slug },
         data: updatedData,
         include: {
@@ -282,32 +288,32 @@ exports.updateProduct = (0, catchAsync_1.default)(async (req, res, next) => {
         price: product.price ? parseFloat(product.price.toString()) : undefined,
     };
     res.status(200).json({
-        status: 'success',
+        status: "success",
         data: formattedProduct,
     });
 });
 // Delete product
 exports.deleteProduct = (0, catchAsync_1.default)(async (req, res, next) => {
-    const product = await prisma.product.findUnique({
+    const product = await prisma_1.default.product.findUnique({
         where: { slug: req.params.slug },
     });
     if (!product) {
-        return next(new appError_1.default('Product not found', 404));
+        return next(new appError_1.default("Product not found", 404));
     }
-    await prisma.product.delete({
+    await prisma_1.default.product.delete({
         where: { slug: req.params.slug },
     });
     res.status(204).json({
-        status: 'success',
+        status: "success",
         data: null,
     });
 });
 // Get trending products
 exports.getTrendingProducts = (0, catchAsync_1.default)(async (req, res) => {
-    const products = await prisma.product.findMany({
+    const products = await prisma_1.default.product.findMany({
         where: { trending: true, inStock: true },
         take: 6,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
             category: {
                 select: {
@@ -317,7 +323,7 @@ exports.getTrendingProducts = (0, catchAsync_1.default)(async (req, res) => {
             },
         },
     });
-    const formattedProducts = products.map(product => ({
+    const formattedProducts = products.map((product) => ({
         ...product,
         images: (0, helpers_1.parseJsonArray)(product.images),
         materials: (0, helpers_1.parseJsonArray)(product.materials),
@@ -325,17 +331,17 @@ exports.getTrendingProducts = (0, catchAsync_1.default)(async (req, res) => {
         price: product.price ? parseFloat(product.price.toString()) : undefined,
     }));
     res.status(200).json({
-        status: 'success',
+        status: "success",
         results: products.length,
         data: formattedProducts,
     });
 });
 // Get featured products
 exports.getFeaturedProducts = (0, catchAsync_1.default)(async (req, res) => {
-    const products = await prisma.product.findMany({
+    const products = await prisma_1.default.product.findMany({
         where: { isFeatured: true, inStock: true },
         take: 6,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
             category: {
                 select: {
@@ -345,7 +351,7 @@ exports.getFeaturedProducts = (0, catchAsync_1.default)(async (req, res) => {
             },
         },
     });
-    const formattedProducts = products.map(product => ({
+    const formattedProducts = products.map((product) => ({
         ...product,
         images: (0, helpers_1.parseJsonArray)(product.images),
         materials: (0, helpers_1.parseJsonArray)(product.materials),
@@ -353,7 +359,7 @@ exports.getFeaturedProducts = (0, catchAsync_1.default)(async (req, res) => {
         price: product.price ? parseFloat(product.price.toString()) : undefined,
     }));
     res.status(200).json({
-        status: 'success',
+        status: "success",
         results: products.length,
         data: formattedProducts,
     });

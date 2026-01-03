@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from "express";
 export declare const getAllProducts: (req: Request, res: Response, next: NextFunction) => void;
 export declare const getProductBySlug: (req: Request, res: Response, next: NextFunction) => void;
 export declare const createProduct: (req: Request, res: Response, next: NextFunction) => void;
