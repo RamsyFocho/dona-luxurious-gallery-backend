@@ -9,6 +9,8 @@ import {
   getTrendingProducts,
   getFeaturedProducts,
   uploadProductImage,
+  updateProductImageAtIndex,
+  deleteProductImageAtIndex,
 } from '../controllers/product.controller';
 import { protect, restrictTo } from '../controllers/auth.controller';
 import { uploadSingle } from '../config/upload';
@@ -22,6 +24,9 @@ router.get('/featured', getFeaturedProducts);
 router.get('/:slug', getProductBySlug);
 // Add this route to your existing product routes
 router.patch('/:slug/image', protect, restrictTo('ADMIN'), uploadSingle('file'), uploadProductImage);
+router.patch('/:slug/images/:index', protect, restrictTo('ADMIN'), uploadSingle('file'), updateProductImageAtIndex);
+router.delete('/:slug/images/:index', protect, restrictTo('ADMIN'), deleteProductImageAtIndex);
+
 // Protected admin routes
 router.use(protect);
 router.use(restrictTo('ADMIN'));

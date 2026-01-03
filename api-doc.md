@@ -221,6 +221,22 @@ curl -X PATCH "http://localhost:5000/api/products/elegant-vase/image" \
   -F "file=@./vase-new.jpg"
 ```
 
+### PATCH /api/products/:slug/images/:index
+
+- Description: Replace a specific image at the given index.
+- Access: Admin only (protected + ADMIN)
+- Request: multipart/form-data with field `file`
+- Behavior: Uploads new image and replaces the URL at `images[index]`. Returns updated product.
+- Errors: 400 if index invalid/out of bounds.
+
+### DELETE /api/products/:slug/images/:index
+
+- Description: Remove a specific image at the given index.
+- Access: Admin only
+- Behavior: Removes the URL at `images[index]` and shifts remaining images. Returns updated product.
+- Errors: 400 if index invalid/out of bounds.
+
+
 ### DELETE /api/products/:slug
 
 - Description: Delete a product

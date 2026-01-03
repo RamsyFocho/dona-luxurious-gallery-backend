@@ -445,3 +445,131 @@ export const getFeaturedProducts = catchAsync(
     });
   }
 );
+
+// Update product image at index
+export const updateProductImageAtIndex = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { slug, index } = req.params;
+    const imageIndex = parseInt(index);
+
+    if (isNaN(imageIndex)) {
+      return next(new AppError("Invalid image index", 400));
+    }
+
+    if (!req.file) {
+      return next(new AppError("Please upload an image file", 400));
+    }
+
+    const product = await prisma.product.findUnique({
+      where: { slug },
+    });
+
+    if (!product) {
+      return next(new AppError("Product not found", 404));
+    }
+
+    const currentImages = parseJsonArray(product.images);
+
+    if (imageIndex < 0 || imageIndex >= currentImages.length) {
+      return next(new AppError("Image index out of bounds", 400));
+    }
+
+    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
+    const uploadsDir = path.resolve("uploads");
+    const filePath = path.resolve(req.file.path);
+    const relativePath = path.relative(uploadsDir, filePath);
+    const fileUrl = `${baseUrl}/uploads/${relativePath.replace(/\\/g, "/")}`;
+
+    // Update the image at the specific index
+    currentImages[imageIndex] = fileUrl;
+
+    const updatedProduct = await prisma.product.update({
+      where: { slug },
+      data: {
+        images: stringifyJsonArray(currentImages),
+      },
+      include: {
+        category: {
+          select: {
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    const formattedProduct = {
+      ...updatedProduct,
+      images: parseJsonArray(updatedProduct.images),
+      materials: parseJsonArray(updatedProduct.materials),
+      keyFeatures: parseJsonArray(updatedProduct.keyFeatures),
+      price: updatedProduct.price
+        ? parseFloat(updatedProduct.price.toString())
+        : undefined,
+    };
+
+    res.status(200).json({
+      status: "success",
+      data: formattedProduct,
+    });
+  }
+);
+
+// Delete product image at index
+export const deleteProductImageAtIndex = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { slug, index } = req.params;
+    const imageIndex = parseInt(index);
+
+    if (isNaN(imageIndex)) {
+      return next(new AppError("Invalid image index", 400));
+    }
+
+    const product = await prisma.product.findUnique({
+      where: { slug },
+    });
+
+    if (!product) {
+      return next(new AppError("Product not found", 404));
+    }
+
+    const currentImages = parseJsonArray(product.images);
+
+    if (imageIndex < 0 || imageIndex >= currentImages.length) {
+      return next(new AppError("Image index out of bounds", 400));
+    }
+
+    // Remove the image at the specific index
+    currentImages.splice(imageIndex, 1);
+
+    const updatedProduct = await prisma.product.update({
+      where: { slug },
+      data: {
+        images: stringifyJsonArray(currentImages),
+      },
+      include: {
+        category: {
+          select: {
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    const formattedProduct = {
+      ...updatedProduct,
+      images: parseJsonArray(updatedProduct.images),
+      materials: parseJsonArray(updatedProduct.materials),
+      keyFeatures: parseJsonArray(updatedProduct.keyFeatures),
+      price: updatedProduct.price
+        ? parseFloat(updatedProduct.price.toString())
+        : undefined,
+    };
+
+    res.status(200).json({
+      status: "success",
+      data: formattedProduct,
+    });
+  }
+);
