@@ -3,12 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getFeaturedProducts = exports.getTrendingProducts = exports.deleteProduct = exports.updateProduct = exports.bulkCreateProducts = exports.uploadProductImage = exports.createProduct = exports.getProductBySlug = exports.getAllProducts = void 0;
+exports.deleteProductImageAtIndex = exports.updateProductImageAtIndex = exports.getFeaturedProducts = exports.getTrendingProducts = exports.deleteProduct = exports.updateProduct = exports.bulkCreateProducts = exports.uploadProductImage = exports.createProduct = exports.getProductBySlug = exports.getAllProducts = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const appError_1 = __importDefault(require("../utils/appError"));
 const catchAsync_1 = __importDefault(require("../utils/catchAsync"));
 const helpers_1 = require("../utils/helpers");
-const path_1 = __importDefault(require("path"));
+const imageUtils_1 = require("../utils/imageUtils");
 // Get all products with pagination and filters
 exports.getAllProducts = (0, catchAsync_1.default)(async (req, res) => {
     const { page, limit, skip } = (0, helpers_1.getPaginationParams)(req);
@@ -149,31 +149,20 @@ exports.createProduct = (0, catchAsync_1.default)(async (req, res, next) => {
         data: formattedProduct,
     });
 });
-// Add this function to your product controller
 exports.uploadProductImage = (0, catchAsync_1.default)(async (req, res, next) => {
-    console.log("--------uploading product from the patch product/:slug/image endpoint ---------------");
     if (!req.file) {
         return next(new appError_1.default("Please upload an image file", 400));
     }
     const product = await prisma_1.default.product.findUnique({
         where: { slug: req.params.slug },
+        include: { category: true },
     });
     if (!product) {
         return next(new appError_1.default("Product not found", 404));
     }
-    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
-    // Fix the path construction
-    // Get the relative path from the uploads directory
-    const uploadsDir = path_1.default.resolve("uploads");
-    const filePath = path_1.default.resolve(req.file.path);
-    // Get relative path from uploads directory
-    const relativePath = path_1.default.relative(uploadsDir, filePath);
-    const fileUrl = `${baseUrl}/uploads/${relativePath.replace(/\\/g, "/")}`;
-    // const fileUrl = `${baseUrl}/uploads/${req.file.path.split('uploads/')[1]}`;
-    // Parse existing images
+    const fileUrl = (0, imageUtils_1.buildProductImageUrl)(product.category.slug, req.file.filename);
     const existingImages = (0, helpers_1.parseJsonArray)(product.images);
     const updatedImages = [...existingImages, fileUrl];
-    // Update product with new image
     const updatedProduct = await prisma_1.default.product.update({
         where: { slug: req.params.slug },
         data: {
@@ -199,6 +188,7 @@ exports.uploadProductImage = (0, catchAsync_1.default)(async (req, res, next) =>
     };
     res.status(200).json({
         status: "success",
+        message: "Image uploaded successfully",
         data: formattedProduct,
     });
 });
@@ -362,6 +352,107 @@ exports.getFeaturedProducts = (0, catchAsync_1.default)(async (req, res) => {
         status: "success",
         results: products.length,
         data: formattedProducts,
+    });
+});
+exports.updateProductImageAtIndex = (0, catchAsync_1.default)(async (req, res, next) => {
+    const { slug, index } = req.params;
+    const imageIndex = parseInt(index);
+    if (isNaN(imageIndex)) {
+        return next(new appError_1.default("Invalid image index", 400));
+    }
+    if (!req.file) {
+        return next(new appError_1.default("Please upload an image file", 400));
+    }
+    const product = await prisma_1.default.product.findUnique({
+        where: { slug },
+        include: { category: true },
+    });
+    if (!product) {
+        return next(new appError_1.default("Product not found", 404));
+    }
+    const currentImages = (0, helpers_1.parseJsonArray)(product.images);
+    if (imageIndex < 0 || imageIndex >= currentImages.length) {
+        return next(new appError_1.default("Image index out of bounds", 400));
+    }
+    const oldImageUrl = currentImages[imageIndex];
+    (0, imageUtils_1.deleteImageFile)(oldImageUrl);
+    const fileUrl = (0, imageUtils_1.buildProductImageUrl)(product.category.slug, req.file.filename);
+    currentImages[imageIndex] = fileUrl;
+    const updatedProduct = await prisma_1.default.product.update({
+        where: { slug },
+        data: {
+            images: (0, helpers_1.stringifyJsonArray)(currentImages),
+        },
+        include: {
+            category: {
+                select: {
+                    name: true,
+                    slug: true,
+                },
+            },
+        },
+    });
+    const formattedProduct = {
+        ...updatedProduct,
+        images: (0, helpers_1.parseJsonArray)(updatedProduct.images),
+        materials: (0, helpers_1.parseJsonArray)(updatedProduct.materials),
+        keyFeatures: (0, helpers_1.parseJsonArray)(updatedProduct.keyFeatures),
+        price: updatedProduct.price
+            ? parseFloat(updatedProduct.price.toString())
+            : undefined,
+    };
+    res.status(200).json({
+        status: "success",
+        message: "Image updated successfully",
+        data: formattedProduct,
+    });
+});
+exports.deleteProductImageAtIndex = (0, catchAsync_1.default)(async (req, res, next) => {
+    const { slug, index } = req.params;
+    const imageIndex = parseInt(index);
+    if (isNaN(imageIndex)) {
+        return next(new appError_1.default("Invalid image index", 400));
+    }
+    const product = await prisma_1.default.product.findUnique({
+        where: { slug },
+    });
+    if (!product) {
+        return next(new appError_1.default("Product not found", 404));
+    }
+    const currentImages = (0, helpers_1.parseJsonArray)(product.images);
+    if (imageIndex < 0 || imageIndex >= currentImages.length) {
+        return next(new appError_1.default("Image index out of bounds", 400));
+    }
+    const deletedImageUrl = currentImages[imageIndex];
+    (0, imageUtils_1.deleteImageFile)(deletedImageUrl);
+    currentImages.splice(imageIndex, 1);
+    const updatedProduct = await prisma_1.default.product.update({
+        where: { slug },
+        data: {
+            images: (0, helpers_1.stringifyJsonArray)(currentImages),
+        },
+        include: {
+            category: {
+                select: {
+                    name: true,
+                    slug: true,
+                },
+            },
+        },
+    });
+    const formattedProduct = {
+        ...updatedProduct,
+        images: (0, helpers_1.parseJsonArray)(updatedProduct.images),
+        materials: (0, helpers_1.parseJsonArray)(updatedProduct.materials),
+        keyFeatures: (0, helpers_1.parseJsonArray)(updatedProduct.keyFeatures),
+        price: updatedProduct.price
+            ? parseFloat(updatedProduct.price.toString())
+            : undefined,
+    };
+    res.status(200).json({
+        status: "success",
+        message: "Image deleted successfully",
+        data: formattedProduct,
     });
 });
 //# sourceMappingURL=product.controller.js.map

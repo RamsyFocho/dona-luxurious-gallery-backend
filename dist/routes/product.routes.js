@@ -7,15 +7,47 @@ const express_1 = __importDefault(require("express"));
 const product_controller_1 = require("../controllers/product.controller");
 const auth_controller_1 = require("../controllers/auth.controller");
 const upload_1 = require("../config/upload");
+const prisma_1 = __importDefault(require("../utils/prisma"));
 const router = express_1.default.Router();
-// Public routes
 router.get('/', product_controller_1.getAllProducts);
 router.get('/trending', product_controller_1.getTrendingProducts);
 router.get('/featured', product_controller_1.getFeaturedProducts);
 router.get('/:slug', product_controller_1.getProductBySlug);
-// Add this route to your existing product routes
-router.patch('/:slug/image', auth_controller_1.protect, (0, auth_controller_1.restrictTo)('ADMIN'), (0, upload_1.uploadSingle)('file'), product_controller_1.uploadProductImage);
-// Protected admin routes
+router.patch('/:slug/image', auth_controller_1.protect, (0, auth_controller_1.restrictTo)('ADMIN'), async (req, res, next) => {
+    try {
+        const product = await prisma_1.default.product.findUnique({
+            where: { slug: req.params.slug },
+            include: { category: true }
+        });
+        if (product) {
+            req.productUploadInfo = {
+                productSlug: product.slug,
+                categorySlug: product.category.slug,
+                imageIndex: undefined
+            };
+        }
+    }
+    catch { }
+    next();
+}, (0, upload_1.uploadSingle)('file'), product_controller_1.uploadProductImage);
+router.patch('/:slug/images/:index', auth_controller_1.protect, (0, auth_controller_1.restrictTo)('ADMIN'), async (req, res, next) => {
+    try {
+        const product = await prisma_1.default.product.findUnique({
+            where: { slug: req.params.slug },
+            include: { category: true }
+        });
+        if (product) {
+            req.productUploadInfo = {
+                productSlug: product.slug,
+                categorySlug: product.category.slug,
+                imageIndex: parseInt(req.params.index)
+            };
+        }
+    }
+    catch { }
+    next();
+}, (0, upload_1.uploadSingle)('file'), product_controller_1.updateProductImageAtIndex);
+router.delete('/:slug/images/:index', auth_controller_1.protect, (0, auth_controller_1.restrictTo)('ADMIN'), product_controller_1.deleteProductImageAtIndex);
 router.use(auth_controller_1.protect);
 router.use((0, auth_controller_1.restrictTo)('ADMIN'));
 router.post('/', product_controller_1.createProduct);

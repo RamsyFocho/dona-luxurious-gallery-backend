@@ -8,6 +8,11 @@ import {
   stringifyJsonArray,
   parseJsonArray,
 } from "../utils/helpers";
+import {
+  deleteImageFile,
+  buildProductImageUrl,
+  extractRelativePath,
+} from "../utils/imageUtils";
 import path from "path";
 
 // Get all products with pagination and filters
@@ -177,40 +182,29 @@ export const createProduct = catchAsync(
     });
   }
 );
-// Add this function to your product controller
 export const uploadProductImage = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log(
-      "--------uploading product from the patch product/:slug/image endpoint ---------------"
-    );
     if (!req.file) {
       return next(new AppError("Please upload an image file", 400));
     }
 
     const product = await prisma.product.findUnique({
       where: { slug: req.params.slug },
+      include: { category: true },
     });
 
     if (!product) {
       return next(new AppError("Product not found", 404));
     }
 
-    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
-    // Fix the path construction
-    // Get the relative path from the uploads directory
-    const uploadsDir = path.resolve("uploads");
-    const filePath = path.resolve(req.file.path);
+    const fileUrl = buildProductImageUrl(
+      product.category.slug,
+      req.file.filename
+    );
 
-    // Get relative path from uploads directory
-    const relativePath = path.relative(uploadsDir, filePath);
-    const fileUrl = `${baseUrl}/uploads/${relativePath.replace(/\\/g, "/")}`;
-    // const fileUrl = `${baseUrl}/uploads/${req.file.path.split('uploads/')[1]}`;
-
-    // Parse existing images
     const existingImages = parseJsonArray(product.images);
     const updatedImages = [...existingImages, fileUrl];
 
-    // Update product with new image
     const updatedProduct = await prisma.product.update({
       where: { slug: req.params.slug },
       data: {
@@ -238,6 +232,7 @@ export const uploadProductImage = catchAsync(
 
     res.status(200).json({
       status: "success",
+      message: "Image uploaded successfully",
       data: formattedProduct,
     });
   }
@@ -446,7 +441,6 @@ export const getFeaturedProducts = catchAsync(
   }
 );
 
-// Update product image at index
 export const updateProductImageAtIndex = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { slug, index } = req.params;
@@ -462,6 +456,7 @@ export const updateProductImageAtIndex = catchAsync(
 
     const product = await prisma.product.findUnique({
       where: { slug },
+      include: { category: true },
     });
 
     if (!product) {
@@ -474,13 +469,11 @@ export const updateProductImageAtIndex = catchAsync(
       return next(new AppError("Image index out of bounds", 400));
     }
 
-    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
-    const uploadsDir = path.resolve("uploads");
-    const filePath = path.resolve(req.file.path);
-    const relativePath = path.relative(uploadsDir, filePath);
-    const fileUrl = `${baseUrl}/uploads/${relativePath.replace(/\\/g, "/")}`;
+    const oldImageUrl = currentImages[imageIndex];
+    deleteImageFile(oldImageUrl);
 
-    // Update the image at the specific index
+    const fileUrl = buildProductImageUrl(product.category.slug, req.file.filename);
+
     currentImages[imageIndex] = fileUrl;
 
     const updatedProduct = await prisma.product.update({
@@ -510,12 +503,12 @@ export const updateProductImageAtIndex = catchAsync(
 
     res.status(200).json({
       status: "success",
+      message: "Image updated successfully",
       data: formattedProduct,
     });
   }
 );
 
-// Delete product image at index
 export const deleteProductImageAtIndex = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { slug, index } = req.params;
@@ -539,7 +532,9 @@ export const deleteProductImageAtIndex = catchAsync(
       return next(new AppError("Image index out of bounds", 400));
     }
 
-    // Remove the image at the specific index
+    const deletedImageUrl = currentImages[imageIndex];
+    deleteImageFile(deletedImageUrl);
+
     currentImages.splice(imageIndex, 1);
 
     const updatedProduct = await prisma.product.update({
@@ -569,6 +564,7 @@ export const deleteProductImageAtIndex = catchAsync(
 
     res.status(200).json({
       status: "success",
+      message: "Image deleted successfully",
       data: formattedProduct,
     });
   }

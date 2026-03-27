@@ -1,8 +1,26 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import {
+  ensureCategoryFolderExists,
+  generateProductImageName,
+  extractRelativePath
+} from '../utils/imageUtils';
 
-// Ensure upload directories exist
+interface ProductUploadInfo {
+  productSlug?: string;
+  categorySlug?: string;
+  imageIndex?: number;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      productUploadInfo?: ProductUploadInfo;
+    }
+  }
+}
+
 const createUploadDirs = () => {
   const dirs = [
     './uploads',
@@ -20,13 +38,14 @@ const createUploadDirs = () => {
 
 createUploadDirs();
 
-// Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let uploadPath = './uploads/temp';
     
     if (req.baseUrl.includes('products')) {
-      uploadPath = './uploads/products';
+      const categorySlug = req.productUploadInfo?.categorySlug || 'uncategorized';
+      uploadPath = `./uploads/products/${categorySlug}`;
+      ensureCategoryFolderExists(categorySlug);
     } else if (req.baseUrl.includes('categories')) {
       uploadPath = './uploads/categories';
     }
@@ -34,10 +53,21 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const filename = path.basename(file.originalname, ext) + '-' + uniqueSuffix + ext;
-    cb(null, filename);
+    const ext = path.extname(file.originalname).toLowerCase();
+    
+    if (req.productUploadInfo?.productSlug && req.productUploadInfo?.categorySlug) {
+      const generatedName = generateProductImageName({
+        productName: '',
+        productSlug: req.productUploadInfo.productSlug,
+        categorySlug: req.productUploadInfo.categorySlug,
+        index: req.productUploadInfo.imageIndex,
+      });
+      cb(null, generatedName + ext);
+    } else {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const baseName = path.basename(file.originalname, ext);
+      cb(null, `${baseName}-${uniqueSuffix}${ext}`);
+    }
   },
 });
 

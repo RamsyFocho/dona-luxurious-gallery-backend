@@ -166,15 +166,18 @@ All endpoints below require `Authorization: Bearer <TOKEN>` and the user must be
 ### POST /api/products
 
 - Description: Create a new product
+- Access: Admin only (protected + ADMIN)
 - Request (application/json): fields from ICreateProduct
   - Required: name, slug, categoryId, categorySlug, description, longDescription, images (array), materials (array), keyFeatures (array)
   - Optional: trending, isFeatured, inStock, price, metaDescription, schema fields
 - Success (201): returns created product object
+- Image URL Format: `{BASE_URL}/uploads/products/{categorySlug}/{filename}`
+  - Example: `http://localhost:5000/uploads/products/vases/elegant-vase-vases-171234567890.jpg`
 - Errors:
   - 400 if slug already exists
   - 404 if categoryId not found
 
-Example body:
+Example request:
 
 ```json
 {
@@ -183,11 +186,48 @@ Example body:
   "categoryId": "uuid-of-category",
   "categorySlug": "vases",
   "description": "A beautiful vase",
-  "longDescription": "Full description",
-  "images": ["http://localhost:5000/uploads/products/vase.jpg"],
-  "materials": ["glass"],
-  "keyFeatures": ["hand-blown"],
-  "price": 120.0
+  "longDescription": "Full description of the elegant hand-blown glass vase...",
+  "images": [
+    "http://localhost:5000/uploads/products/vases/elegant-vase-vases-171234567890.jpg"
+  ],
+  "materials": ["glass", "hand-blown"],
+  "keyFeatures": ["limited edition", "artisanal"],
+  "price": 120.0,
+  "trending": true,
+  "isFeatured": true,
+  "inStock": true
+}
+```
+
+Example response (201):
+
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "uuid",
+    "name": "Elegant Vase",
+    "slug": "elegant-vase",
+    "category": {
+      "name": "Vases",
+      "slug": "vases"
+    },
+    "categoryId": "uuid-of-category",
+    "categorySlug": "vases",
+    "description": "A beautiful vase",
+    "longDescription": "Full description of the elegant hand-blown glass vase...",
+    "images": [
+      "http://localhost:5000/uploads/products/vases/elegant-vase-vases-171234567890.jpg"
+    ],
+    "materials": ["glass", "hand-blown"],
+    "keyFeatures": ["limited edition", "artisanal"],
+    "price": 120.0,
+    "trending": true,
+    "isFeatured": true,
+    "inStock": true,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
 }
 ```
 
@@ -201,19 +241,85 @@ Example body:
 ### PATCH /api/products/:slug
 
 - Description: Partially update a product
+- Access: Admin only (protected + ADMIN)
 - Request (application/json): any fields from IUpdateProduct
   - Note: if updating `categoryId`, the server verifies the category exists. If updating `slug`, server checks uniqueness.
   - Updating `images` requires sending the full `images` array (URLs). To _replace_ a single image in one request, use the dedicated image route below.
-- Success (200): returns updated product
+- Success (200): returns updated product object
+
+Example request:
+
+```json
+{
+  "name": "Updated Elegant Vase",
+  "price": 150.0,
+  "isFeatured": true
+}
+```
+
+Example response (200):
+
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "uuid",
+    "name": "Updated Elegant Vase",
+    "slug": "elegant-vase",
+    "category": {
+      "name": "Vases",
+      "slug": "vases"
+    },
+    "images": [
+      "http://localhost:5000/uploads/products/vases/elegant-vase-vases-171234567890.jpg"
+    ],
+    "price": 150.0,
+    "isFeatured": true,
+    ...
+  }
+}
+```
+
 - Errors: 400 / 404 accordingly
 
 ### PATCH /api/products/:slug/image
 
-- Description: Upload a single image and update the product's `images` field (prepend or replace as implemented).
+- Description: Upload a single image for a product and append it to the images array.
 - Access: Admin only (protected + ADMIN)
-- Request: multipart/form-data with field `file` (use `uploadSingle('file')` middleware)
-- Behavior: Saves file to `uploads/` and updates the product `images` JSON array. Returns updated product.
-- Example curl:
+- Request: multipart/form-data with field `file` (image mime types only)
+- Behavior: 
+  - Image is saved to `uploads/products/{categorySlug}/` folder
+  - Filename format: `{productSlug}-{categorySlug}-{timestamp}.{ext}`
+  - Example: `elegant-vase-vases-171234567890.jpg`
+  - New image URL is appended to the product's `images` array
+- Success (200):
+
+```json
+{
+  "status": "success",
+  "message": "Image uploaded successfully",
+  "data": {
+    "id": "uuid",
+    "name": "Elegant Vase",
+    "slug": "elegant-vase",
+    "category": { "name": "Vases", "slug": "vases" },
+    "images": [
+      "http://localhost:5000/uploads/products/vases/elegant-vase-vases-171234567890.jpg"
+    ],
+    "materials": ["glass"],
+    "keyFeatures": ["hand-blown"],
+    "price": 120.0,
+    "trending": false,
+    "isFeatured": true,
+    "inStock": true,
+    "createdAt": "...",
+    "updatedAt": "..."
+  }
+}
+```
+- Errors: 400 if no file uploaded, 404 if product not found
+
+Example curl:
 
 ```bash
 curl -X PATCH "http://localhost:5000/api/products/elegant-vase/image" \
@@ -225,16 +331,71 @@ curl -X PATCH "http://localhost:5000/api/products/elegant-vase/image" \
 
 - Description: Replace a specific image at the given index.
 - Access: Admin only (protected + ADMIN)
-- Request: multipart/form-data with field `file`
-- Behavior: Uploads new image and replaces the URL at `images[index]`. Returns updated product.
-- Errors: 400 if index invalid/out of bounds.
+- Request: multipart/form-data with field `file` (image mime types only)
+- Behavior: 
+  - Deletes the existing image file from disk
+  - Saves new image to `uploads/products/{categorySlug}/` folder
+  - Filename format: `{productSlug}-{categorySlug}-{index}-{timestamp}.{ext}`
+  - Replaces the URL at `images[index]`
+  - **Important:** Old image file is permanently deleted from the server
+- Success (200):
+
+```json
+{
+  "status": "success",
+  "message": "Image updated successfully",
+  "data": {
+    "id": "uuid",
+    "name": "Elegant Vase",
+    "slug": "elegant-vase",
+    "images": [
+      "http://localhost:5000/uploads/products/vases/elegant-vase-vases-0-171234567890.jpg"
+    ],
+    ...
+  }
+}
+```
+- Errors: 400 if index invalid/out of bounds, 404 if product not found
+
+Example curl:
+
+```bash
+curl -X PATCH "http://localhost:5000/api/products/elegant-vase/images/0" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -F "file=@./vase-updated.jpg"
+```
 
 ### DELETE /api/products/:slug/images/:index
 
 - Description: Remove a specific image at the given index.
-- Access: Admin only
-- Behavior: Removes the URL at `images[index]` and shifts remaining images. Returns updated product.
-- Errors: 400 if index invalid/out of bounds.
+- Access: Admin only (protected + ADMIN)
+- Behavior: 
+  - Deletes the image file from disk
+  - Removes the URL at `images[index]` and shifts remaining images
+  - **Important:** Image file is permanently deleted from the server
+- Success (200):
+
+```json
+{
+  "status": "success",
+  "message": "Image deleted successfully",
+  "data": {
+    "id": "uuid",
+    "name": "Elegant Vase",
+    "slug": "elegant-vase",
+    "images": [],
+    ...
+  }
+}
+```
+- Errors: 400 if index invalid/out of bounds, 404 if product not found
+
+Example curl:
+
+```bash
+curl -X DELETE "http://localhost:5000/api/products/elegant-vase/images/0" \
+  -H "Authorization: Bearer <TOKEN>"
+```
 
 
 ### DELETE /api/products/:slug
@@ -335,6 +496,26 @@ curl -X PATCH "http://localhost:5000/api/products/elegant-vase/image" \
   - The server will remove the base URL if present and attempt to delete the file from disk.
 - Success (200): { status: 'success', message: 'File deleted successfully' }
 - Errors: 400 if missing `filepath`, 404 if file not found
+
+**Image Storage Conventions 🖼️**
+
+Product images follow a structured folder and naming convention for optimal organization:
+
+- **Folder Structure**: `uploads/products/{categorySlug}/`
+  - Example: `uploads/products/vases/`, `uploads/products/sculptures/`
+  
+- **Filename Format**: `{productSlug}-{categorySlug}[-{index}]-{timestamp}.{ext}`
+  - Example: `elegant-vase-vases-171234567890.jpg`
+  - With index: `elegant-vase-vases-0-171234567890.jpg`
+  
+- **URL Format**: `{BASE_URL}/uploads/products/{categorySlug}/{filename}`
+  - Example: `http://localhost:5000/uploads/products/vases/elegant-vase-vases-171234567890.jpg`
+
+**Benefits:**
+- Images are organized by category for easier management
+- Filenames contain meaningful information (product + category)
+- Consistent URL structure simplifies client-side image handling
+- Automatic cleanup of old images when replaced
 
 **Security & safety notes:**
 

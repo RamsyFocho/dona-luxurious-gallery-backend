@@ -8,4 +8,6 @@ export declare const updateProduct: (req: Request, res: Response, next: NextFunc
 export declare const deleteProduct: (req: Request, res: Response, next: NextFunction) => void;
 export declare const getTrendingProducts: (req: Request, res: Response, next: NextFunction) => void;
 export declare const getFeaturedProducts: (req: Request, res: Response, next: NextFunction) => void;
+export declare const updateProductImageAtIndex: (req: Request, res: Response, next: NextFunction) => void;
+export declare const deleteProductImageAtIndex: (req: Request, res: Response, next: NextFunction) => void;
 //# sourceMappingURL=product.controller.d.ts.map

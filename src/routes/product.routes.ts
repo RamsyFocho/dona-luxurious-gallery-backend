@@ -14,20 +14,51 @@ import {
 } from '../controllers/product.controller';
 import { protect, restrictTo } from '../controllers/auth.controller';
 import { uploadSingle } from '../config/upload';
+import prisma from '../utils/prisma';
 
 const router = express.Router();
 
-// Public routes
 router.get('/', getAllProducts);
 router.get('/trending', getTrendingProducts);
 router.get('/featured', getFeaturedProducts);
 router.get('/:slug', getProductBySlug);
-// Add this route to your existing product routes
-router.patch('/:slug/image', protect, restrictTo('ADMIN'), uploadSingle('file'), uploadProductImage);
-router.patch('/:slug/images/:index', protect, restrictTo('ADMIN'), uploadSingle('file'), updateProductImageAtIndex);
+
+router.patch('/:slug/image', protect, restrictTo('ADMIN'), async (req, res, next) => {
+  try {
+    const product = await prisma.product.findUnique({
+      where: { slug: req.params.slug },
+      include: { category: true }
+    });
+    if (product) {
+      req.productUploadInfo = {
+        productSlug: product.slug,
+        categorySlug: product.category.slug,
+        imageIndex: undefined
+      };
+    }
+  } catch {}
+  next();
+}, uploadSingle('file'), uploadProductImage);
+
+router.patch('/:slug/images/:index', protect, restrictTo('ADMIN'), async (req, res, next) => {
+  try {
+    const product = await prisma.product.findUnique({
+      where: { slug: req.params.slug },
+      include: { category: true }
+    });
+    if (product) {
+      req.productUploadInfo = {
+        productSlug: product.slug,
+        categorySlug: product.category.slug,
+        imageIndex: parseInt(req.params.index)
+      };
+    }
+  } catch {}
+  next();
+}, uploadSingle('file'), updateProductImageAtIndex);
+
 router.delete('/:slug/images/:index', protect, restrictTo('ADMIN'), deleteProductImageAtIndex);
 
-// Protected admin routes
 router.use(protect);
 router.use(restrictTo('ADMIN'));
 

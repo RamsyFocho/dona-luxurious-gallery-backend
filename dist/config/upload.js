@@ -7,7 +7,7 @@ exports.uploadMultiple = exports.uploadSingle = exports.upload = void 0;
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
-// Ensure upload directories exist
+const imageUtils_1 = require("../utils/imageUtils");
 const createUploadDirs = () => {
     const dirs = [
         './uploads',
@@ -22,12 +22,13 @@ const createUploadDirs = () => {
     });
 };
 createUploadDirs();
-// Configure storage
 const storage = multer_1.default.diskStorage({
     destination: (req, file, cb) => {
         let uploadPath = './uploads/temp';
         if (req.baseUrl.includes('products')) {
-            uploadPath = './uploads/products';
+            const categorySlug = req.productUploadInfo?.categorySlug || 'uncategorized';
+            uploadPath = `./uploads/products/${categorySlug}`;
+            (0, imageUtils_1.ensureCategoryFolderExists)(categorySlug);
         }
         else if (req.baseUrl.includes('categories')) {
             uploadPath = './uploads/categories';
@@ -35,10 +36,21 @@ const storage = multer_1.default.diskStorage({
         cb(null, uploadPath);
     },
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path_1.default.extname(file.originalname);
-        const filename = path_1.default.basename(file.originalname, ext) + '-' + uniqueSuffix + ext;
-        cb(null, filename);
+        const ext = path_1.default.extname(file.originalname).toLowerCase();
+        if (req.productUploadInfo?.productSlug && req.productUploadInfo?.categorySlug) {
+            const generatedName = (0, imageUtils_1.generateProductImageName)({
+                productName: '',
+                productSlug: req.productUploadInfo.productSlug,
+                categorySlug: req.productUploadInfo.categorySlug,
+                index: req.productUploadInfo.imageIndex,
+            });
+            cb(null, generatedName + ext);
+        }
+        else {
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            const baseName = path_1.default.basename(file.originalname, ext);
+            cb(null, `${baseName}-${uniqueSuffix}${ext}`);
+        }
     },
 });
 // File filter
